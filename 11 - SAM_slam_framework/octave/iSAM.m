@@ -124,8 +124,4 @@ for t = 1:size(data.timestep, 2)
     num_observations = num_observations + num_new_observations;
     num_landmarks = num_landmarks + num_new_landmarks;
     
-    P = colamd(A);
-    
-    
-    
 end
