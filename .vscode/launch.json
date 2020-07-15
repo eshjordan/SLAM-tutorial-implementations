@@ -1,0 +1,17 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "OctaveDebugger",
+            "request": "launch",
+            "name": "Function or file to execute",
+            "program": "iSAM",
+            "octave": "octave-cli",
+            "sourceFolder": "${workspaceFolder}/11 - SAM_slam_framework/octave/",
+            "autoTerminate": true
+        }
+    ]
+}

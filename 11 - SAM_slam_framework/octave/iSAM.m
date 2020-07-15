@@ -5,7 +5,6 @@ addpath('tools');
 
 landmarks = read_world('../data/world.dat');
 data = read_data('../data/sensor_data.dat');
-N = size(landmarks,2);
 
 motion_err = [0.2;0.2;0.05];
 motion_cov = motion_err.*eye(3);
@@ -21,20 +20,30 @@ observation_noise = sqrtm(observation_cov)';
 ai = motion_noise*motion_err;
 ck = observation_noise*observation_err;
 
-num_odometry = 1;
-num_observations = 0;
-num_landmarks = 0;
-landmark_ids = [];
+num_odometry = 0;       % N
+num_observations = 0;   % K
+num_landmarks = 0;      % M
 
-u = {};
-z = {};
+d_x = 3;                % Dimensions of state
+d_z = 2;                % Dimensions of measurement
+d_l = 2;                % Dimensions of landmark
+
+landmark_ids = [];      % Used to store previously seen landmarks
+
+u = {};                 % Used to store control structs
+z = {};                 % Used to store observation structs
+
 dx = [0;0;0];
 dl = [];
+d = [dx; dl];           % Delta vector for state/landmark update
 
 
-A = -motion_noise*eye(3);
-b = [0;0;0];
-I = [];
+A = sparse(0, 0);       % System Matrix
+r = 0;                  % Number of rows in A
+c = 0;                  % Number of cols in A
+
+b = [];            % Error vector
+% I = [];
 
 showGui = true; % plot to files instead
 
@@ -48,20 +57,35 @@ for t = 1:size(data.timestep, 2)
     z{end+1} = data.timestep(t).sensor;
     
     dx_prev = dx(end-2:end);
-    dx = [dx; motion_function(dx_prev, [u{t}.r1;u{t}.t;u{t}.r2])];
-    dx_curr = dx(end-2:end);
+    dx_curr = motion_function(dx_prev, [u{t}.r1;u{t}.t;u{t}.r2]);
+    dx = [dx; dx_curr];
     
     num_new_observations = length(z{end});
     
     for j = 1:num_new_observations
+        % If landmark not previously seen
         if ~ismember(z{end}(j).id, landmark_ids)
-            landmarks(z{end}(j).id).observed = true;
+            % Add to the list of observed landmarks
             landmark_ids = [landmark_ids, z{end}(j).id];
-            dl = [dl;observation_function(dx_curr, [z{end}(j).range;z{end}(j).bearing], false)];
+            
+            % Add initial landmark position to state vector
+            dl = [dl; observation_function(dx_curr, [z{end}(j).range;z{end}(j).bearing], false)];
         end
     end
     
     num_new_landmarks = length(landmark_ids) - num_landmarks;
+
+    % Update count of variables
+    num_odometry = num_odometry + 1;
+    num_observations = num_observations + num_new_observations;
+    num_landmarks = num_landmarks + num_new_landmarks;
+
+    % Increase number of rows and columns by height and width of observation Jacobian
+    c = c + 3*num_new_observations;
+    r = r + 2*num_new_observations;
+
+    % Increase number of columns by width of landmark Jacobian
+    c = c + 2*num_new_landmarks;
     
     [F, G] = motion_jacobian(dx_prev, [u{t}.r1;u{t}.t;u{t}.r2]);
     
@@ -118,7 +142,7 @@ for t = 1:size(data.timestep, 2)
     % Resample the particle set
 %     particles = resample(particles);
 
-%     heatmap(int8(A ~= 0));
+    % spy(A);
     
     num_odometry = num_odometry+1;
     num_observations = num_observations + num_new_observations;
